@@ -398,7 +398,10 @@ func convertColumnDefaultToString(ctx *sql.Context, def *sql.ColumnDefaultValue)
 	if types.IsBit(def.OutType) {
 		return fmt.Sprintf("b'%b'", v), nil
 	}
-	return fmt.Sprintf("'%v'", v), nil
+	// Escape single quotes and backslashes in v to prevent SQL injection
+	sanitizedValue := strings.ReplaceAll(fmt.Sprintf("%v", v), `\`, `\\`)
+	sanitizedValue = strings.ReplaceAll(sanitizedValue, `'`, `\'`)
+	return fmt.Sprintf("'%s'", sanitizedValue), nil
 }
 
 func (i *showCreateTablesIter) produceCreateTableStatement(ctx *sql.Context, table sql.Table, schema sql.Schema, pkSchema sql.PrimaryKeySchema) (string, error) {
