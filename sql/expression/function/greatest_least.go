@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"math"
 
 	"gopkg.in/src-d/go-errors.v1"
 
@@ -126,6 +127,9 @@ func compEval(
 
 	switch returnType {
 	case sql.Int64:
+		if selectedNum < float64(math.MinInt64) || selectedNum > float64(math.MaxInt64) {
+			return nil, ErrUintOverflow.New()
+		}
 		return int64(selectedNum), nil
 	case sql.LongText:
 		return selectedString, nil
