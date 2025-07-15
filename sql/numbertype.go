@@ -1083,7 +1083,7 @@ func mustInt64(v interface{}) int64 {
 		return int64(tv)
 	case uint64:
 		if tv > math.MaxInt64 {
-			panic(fmt.Sprintf("value %d exceeds int64 range", tv))
+			return math.MaxInt64
 		}
 		return int64(tv)
 	case bool:
