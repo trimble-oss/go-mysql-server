@@ -117,7 +117,7 @@ func (t yearType) Convert(v interface{}) (interface{}, error) {
 			return nil, ErrConvertingToYear.New("float64 value out of bounds for int16")
 		}
 		// Check for fractional part
-		if value != float64(int16(value)) {
+		if value != math.Trunc(value) {
 			return nil, ErrConvertingToYear.New("float64 value has a fractional component, cannot convert to int16")
 		}
 		return int16(value), nil
