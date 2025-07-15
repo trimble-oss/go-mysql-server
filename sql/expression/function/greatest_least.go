@@ -16,10 +16,10 @@ package function
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
-	"math"
 
 	"gopkg.in/src-d/go-errors.v1"
 
