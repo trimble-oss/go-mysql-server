@@ -78,11 +78,11 @@ jobs:
         if: steps.merge_main.outputs.skip == 'false' && steps.check_doltgresql_pr.outputs.comment_exists == 'false'
         run: git clone https://github.com/dolthub/doltgresql.git
 
-      - name: Build DoltgreSQL's parser
-        if: steps.merge_main.outputs.skip == 'false' && steps.check_doltgresql_pr.outputs.comment_exists == 'false'
-        run: |
-          cd doltgresql
-          ./postgres/parser/build.sh
+      # - name: Build DoltgreSQL's parser
+      #   if: steps.merge_main.outputs.skip == 'false' && steps.check_doltgresql_pr.outputs.comment_exists == 'false'
+      #   run: |
+      #     cd doltgresql
+      #     ./postgres/parser/build.sh
 
       - name: Test Dolt against main
         id: test_dolt_main
