@@ -659,7 +659,7 @@ func toInt64(x interface{}) int64 {
 		return x
 	case uint64:
 		if x > math.MaxInt64 {
-			panic(fmt.Sprintf("Value %d exceeds int64 range", x))
+			return math.MaxInt64
 		}
 		return int64(x)
 	case float32:
