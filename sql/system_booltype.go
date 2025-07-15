@@ -108,7 +108,6 @@ func (t systemBoolType) Convert(v interface{}) (interface{}, error) {
 					return int8(intVal), nil
 				}
 			}
-			return nil, ErrInvalidSystemVariableValue.New(t.varName, v)
 		}
 		return nil, ErrInvalidSystemVariableValue.New(t.varName, v)
 	case decimal.Decimal:
