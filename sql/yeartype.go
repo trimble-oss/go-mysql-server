@@ -116,7 +116,7 @@ func (t yearType) Convert(v interface{}) (interface{}, error) {
 		if value < float64(math.MinInt16) || value > float64(math.MaxInt16) {
 			return nil, ErrConvertingToYear.New("float64 value out of bounds for int16")
 		}
-		return t.Convert(int16(value))
+		return int16(value), nil
 	case decimal.Decimal:
 		return t.Convert(value.IntPart())
 	case decimal.NullDecimal:
