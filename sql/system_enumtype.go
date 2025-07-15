@@ -104,7 +104,7 @@ func (t systemEnumType) Convert(v interface{}) (interface{}, error) {
 	case float64:
 		// Float values aren't truly accepted, but the engine will give them when it should give ints.
 		// Therefore, if the float doesn't have a fractional portion, we treat it as an int.
-		if value == float64(int(value)) && value <= float64(math.MaxInt) {
+		if value >= float64(math.MinInt) && value <= float64(math.MaxInt) && value == float64(int(value)) {
 			return t.Convert(int(value))
 		}
 		return nil, ErrInvalidSystemVariableValue.New(t.varName, value)
