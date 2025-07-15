@@ -15,6 +15,7 @@
 package sql
 
 import (
+	"math"
 	"reflect"
 	"strings"
 
