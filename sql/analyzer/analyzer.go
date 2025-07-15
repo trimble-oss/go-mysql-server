@@ -303,12 +303,46 @@ func (a *Analyzer) Log(msg string, args ...interface{}) {
 
 func sanitizeArguments(args []interface{}) []interface{} {
 	for i, arg := range args {
-		// Example sanitization logic: replace sensitive data with placeholder
-		if isSensitive(arg) {
-			args[i] = "[REDACTED]"
+		switch v := arg.(type) {
+		case string:
+			if isSensitiveString(v) {
+				args[i] = "[REDACTED]"
+			}
+		case map[string]interface{}:
+			args[i] = sanitizeMap(v)
+		case []interface{}:
+			args[i] = sanitizeArguments(v)
+		default:
+			if reflect.TypeOf(arg).Kind() == reflect.Struct {
+				args[i] = "[STRUCT_REDACTED]"
+			}
 		}
 	}
 	return args
+}
+
+func sanitizeMap(m map[string]interface{}) map[string]interface{} {
+	for key, value := range m {
+		if isSensitiveString(key) || isSensitive(value) {
+			m[key] = "[REDACTED]"
+		} else if subMap, ok := value.(map[string]interface{}); ok {
+			m[key] = sanitizeMap(subMap)
+		} else if subSlice, ok := value.([]interface{}); ok {
+			m[key] = sanitizeArguments(subSlice)
+		}
+	}
+	return m
+}
+
+func isSensitiveString(str string) bool {
+	sensitiveKeywords := []string{"password", "secret", "token", "key"}
+	str = strings.ToLower(str)
+	for _, keyword := range sensitiveKeywords {
+		if strings.Contains(str, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 func isSensitive(arg interface{}) bool {
