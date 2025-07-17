@@ -17,6 +17,7 @@ package values
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math"
 )
 
@@ -108,54 +109,77 @@ func ReadBool(val []byte) bool {
 	expectSize(val, Int8Size)
 	return val[0] == 1
 }
-func ReadInt8(val []byte) int8 {
+func ReadInt8(val []byte) (int8, error) {
 	expectSize(val, Int8Size)
-	return int8(val[0])
+	if len(val) != int(Int8Size) {
+		return 0, fmt.Errorf("invalid size for int8: expected %d, got %d", Int8Size, len(val))
+	}
+	return int8(val[0]), nil
 }
 
-func ReadUint8(val []byte) uint8 {
+func ReadUint8(val []byte) (uint8, error) {
 	expectSize(val, Uint8Size)
-	return val[0]
+	if len(val) != int(Uint8Size) {
+		return 0, fmt.Errorf("invalid size for uint8: expected %d, got %d", Uint8Size, len(val))
+	}
+	return val[0], nil
 }
 
-func ReadInt16(val []byte) int16 {
-	expectSize(val, Int16Size)
-	return int16(binary.LittleEndian.Uint16(val))
+func ReadInt16(val []byte) (int16, error) {
+	expectSizeErr := expectSize(val, Int16Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
+	return int16(binary.LittleEndian.Uint16(val)), nil
 }
 
-func ReadUint16(val []byte) uint16 {
-	expectSize(val, Uint16Size)
-	return binary.LittleEndian.Uint16(val)
+func ReadUint16(val []byte) (uint16, error) {
+	expectSizeErr := expectSize(val, Uint16Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
+	return binary.LittleEndian.Uint16(val), nil
 }
 
-func ReadInt24(val []byte) (i int32) {
-	expectSize(val, Int24Size)
+// Updated ReadInt24 and ReadUint24 to return value and error
+func ReadInt24(val []byte) (int32, error) {
+	expectSizeErr := expectSize(val, Int24Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
 	var tmp [4]byte
 	// copy |val| to |tmp|
 	tmp[3], tmp[2] = val[3], val[2]
 	tmp[1], tmp[0] = val[1], val[0]
-	i = int32(binary.LittleEndian.Uint32(tmp[:]))
-	return
+	return int32(binary.LittleEndian.Uint32(tmp[:])), nil
 }
 
-func ReadUint24(val []byte) (u uint32) {
-	expectSize(val, Int24Size)
+func ReadUint24(val []byte) (uint32, error) {
+	expectSizeErr := expectSize(val, Int24Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
 	var tmp [4]byte
 	// copy |val| to |tmp|
 	tmp[3], tmp[2] = val[3], val[2]
 	tmp[1], tmp[0] = val[1], val[0]
-	u = binary.LittleEndian.Uint32(tmp[:])
-	return
+	return binary.LittleEndian.Uint32(tmp[:]), nil
 }
 
-func ReadInt32(val []byte) int32 {
-	expectSize(val, Int32Size)
-	return int32(binary.LittleEndian.Uint32(val))
+func ReadInt32(val []byte) (int32, error) {
+	expectSizeErr := expectSize(val, Int32Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
+	return int32(binary.LittleEndian.Uint32(val)), nil
 }
 
-func ReadUint32(val []byte) uint32 {
-	expectSize(val, Uint32Size)
-	return binary.LittleEndian.Uint32(val)
+func ReadUint32(val []byte) (uint32, error) {
+	expectSizeErr := expectSize(val, Uint32Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
+	return binary.LittleEndian.Uint32(val), nil
 }
 
 func ReadInt48(val []byte) (i int64) {
@@ -180,24 +204,44 @@ func ReadUint48(val []byte) (u uint64) {
 	return
 }
 
-func ReadInt64(val []byte) int64 {
-	expectSize(val, Int64Size)
-	return int64(binary.LittleEndian.Uint64(val))
+func ReadInt64(val []byte) (int64, error) {
+	expectSizeErr := expectSize(val, Int64Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
+	return int64(binary.LittleEndian.Uint64(val)), nil
 }
 
-func ReadUint64(val []byte) uint64 {
-	expectSize(val, Uint64Size)
-	return binary.LittleEndian.Uint64(val)
+func ReadUint64(val []byte) (uint64, error) {
+	expectSizeErr := expectSize(val, Uint64Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
+	return binary.LittleEndian.Uint64(val), nil
 }
 
-func ReadFloat32(val []byte) float32 {
-	expectSize(val, Float32Size)
-	return math.Float32frombits(ReadUint32(val))
+func ReadFloat32(val []byte) (float32, error) {
+	expectSizeErr := expectSize(val, Float32Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
+	uintVal, err := ReadUint32(val)
+	if err != nil {
+		return 0, err
+	}
+	return math.Float32frombits(uintVal), nil
 }
 
-func ReadFloat64(val []byte) float64 {
-	expectSize(val, Float64Size)
-	return math.Float64frombits(ReadUint64(val))
+func ReadFloat64(val []byte) (float64, error) {
+	expectSizeErr := expectSize(val, Float64Size)
+	if expectSizeErr != nil {
+		return 0, expectSizeErr
+	}
+	uintVal, err := ReadUint64(val)
+	if err != nil {
+		return 0, err
+	}
+	return math.Float64frombits(uintVal), nil
 }
 
 func ReadString(val []byte, coll Collation) string {
@@ -256,20 +300,20 @@ func WriteInt24(buf []byte, val int32) []byte {
 	return buf
 }
 
-func WriteUint24(buf []byte, val uint32) []byte {
-	expectSize(buf, Uint24Size)
+func WriteUint24(buf []byte, val uint32) ([]byte, error) {
+	expectSizeErr := expectSize(buf, Uint24Size)
+	if expectSizeErr != nil {
+		return nil, expectSizeErr
+	}
 	if val > maxUint24 {
-		panic("uint is greater than max uint24")
+		return nil, fmt.Errorf("uint value %d exceeds max uint24 %d", val, maxUint24)
 	}
 
 	var tmp [4]byte
 	binary.LittleEndian.PutUint32(tmp[:], uint32(val))
 	// copy |tmp| to |buf|
 	buf[2], buf[1], buf[0] = tmp[2], tmp[1], tmp[0]
-	return buf
-
-	binary.LittleEndian.PutUint16(buf, uint16(val))
-	return buf
+	return buf, nil
 }
 
 func WriteInt32(buf []byte, val int32) []byte {
@@ -284,10 +328,13 @@ func WriteUint32(buf []byte, val uint32) []byte {
 	return buf
 }
 
-func WriteUint48(buf []byte, u uint64) []byte {
-	expectSize(buf, Uint48Size)
+func WriteUint48(buf []byte, u uint64) ([]byte, error) {
+	expectSizeErr := expectSize(buf, Uint48Size)
+	if expectSizeErr != nil {
+		return nil, expectSizeErr
+	}
 	if u > maxUint48 {
-		panic("uint is greater than max uint48")
+		return nil, fmt.Errorf("uint value %d exceeds max uint48 %d", u, maxUint48)
 	}
 	var tmp [8]byte
 	binary.LittleEndian.PutUint64(tmp[:], u)
@@ -295,7 +342,7 @@ func WriteUint48(buf []byte, u uint64) []byte {
 	buf[5], buf[4] = tmp[5], tmp[4]
 	buf[3], buf[2] = tmp[3], tmp[2]
 	buf[1], buf[0] = tmp[1], tmp[0]
-	return buf
+	return buf, nil
 }
 
 func WriteInt64(buf []byte, val int64) []byte {
@@ -336,59 +383,141 @@ func WriteBytes(buf, val []byte, coll Collation) []byte {
 	return buf
 }
 
-func expectSize(buf []byte, sz ByteSize) {
+func expectSize(buf []byte, sz ByteSize) error {
 	if ByteSize(len(buf)) != sz {
-		panic("byte slice is not of expected size")
+		return fmt.Errorf("byte slice is not of expected size: expected %d, got %d", sz, len(buf))
 	}
+	return nil
 }
 
-func compare(typ Type, left, right []byte) int {
+// Updated compare function to handle errors from all Read* functions
+func compare(typ Type, left, right []byte) (int, error) {
 	// order NULLs last
 	if left == nil {
 		if right == nil {
-			return 0
+			return 0, nil
 		} else {
-			return 1
+			return 1, nil
 		}
 	} else if right == nil {
 		if left == nil {
-			return 0
+			return 0, nil
 		} else {
-			return -1
+			return -1, nil
 		}
 	}
 
 	switch typ.Enc {
 	case Int8Enc:
-		return compareInt8(ReadInt8(left), ReadInt8(right))
+		lval, err := ReadInt8(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadInt8(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareInt8(lval, rval), nil
 	case Uint8Enc:
-		return compareUint8(ReadUint8(left), ReadUint8(right))
+		lval, err := ReadUint8(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadUint8(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareUint8(lval, rval), nil
 	case Int16Enc:
-		return compareInt16(ReadInt16(left), ReadInt16(right))
+		lval, err := ReadInt16(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadInt16(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareInt16(lval, rval), nil
 	case Uint16Enc:
-		return compareUint16(ReadUint16(left), ReadUint16(right))
-	case Int24Enc:
-		panic("24 bit")
-	case Uint24Enc:
-		panic("24 bit")
+		lval, err := ReadUint16(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadUint16(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareUint16(lval, rval), nil
 	case Int32Enc:
-		return compareInt32(ReadInt32(left), ReadInt32(right))
+		lval, err := ReadInt32(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadInt32(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareInt32(lval, rval), nil
 	case Uint32Enc:
-		return compareUint32(ReadUint32(left), ReadUint32(right))
+		lval, err := ReadUint32(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadUint32(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareUint32(lval, rval), nil
 	case Int64Enc:
-		return compareInt64(ReadInt64(left), ReadInt64(right))
+		lval, err := ReadInt64(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadInt64(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareInt64(lval, rval), nil
 	case Uint64Enc:
-		return compareUint64(ReadUint64(left), ReadUint64(right))
+		lval, err := ReadUint64(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadUint64(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareUint64(lval, rval), nil
 	case Float32Enc:
-		return compareFloat32(ReadFloat32(left), ReadFloat32(right))
+		lval, err := ReadFloat32(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadFloat32(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareFloat32(lval, rval), nil
 	case Float64Enc:
-		return compareFloat64(ReadFloat64(left), ReadFloat64(right))
+		lval, err := ReadFloat64(left)
+		if err != nil {
+			return 0, err
+		}
+		rval, err := ReadFloat64(right)
+		if err != nil {
+			return 0, err
+		}
+		return compareFloat64(lval, rval), nil
 	case StringEnc:
-		return compareString(ReadString(left, typ.Coll), ReadString(right, typ.Coll), typ.Coll)
+		lval := ReadString(left, typ.Coll)
+		rval := ReadString(right, typ.Coll)
+		return compareString(lval, rval, typ.Coll), nil
 	case BytesEnc:
-		return compareBytes(ReadBytes(left, typ.Coll), ReadBytes(right, typ.Coll), typ.Coll)
+		lval := ReadBytes(left, typ.Coll)
+		rval := ReadBytes(right, typ.Coll)
+		return compareBytes(lval, rval, typ.Coll), nil
 	default:
-		panic("unknown encoding")
+		return 0, fmt.Errorf("unknown encoding")
 	}
 }
 

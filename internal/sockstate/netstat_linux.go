@@ -27,6 +27,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"net"
 	"os"
 	"path"
@@ -175,8 +176,8 @@ func parseAddr(s string) (*sockAddr, error) {
 		return nil, err
 	}
 	v, err := strconv.ParseUint(fields[1], 16, 16)
-	if err != nil {
-		return nil, err
+	if err != nil || v > math.MaxUint16 {
+		return nil, fmt.Errorf("invalid uint16 conversion: %v", err)
 	}
 	return &sockAddr{IP: ip, Port: uint16(v)}, nil
 }
@@ -215,8 +216,8 @@ func parseSocktab(r io.Reader, accept AcceptFn) ([]sockTabEntry, error) {
 		}
 		e.State = skState(u)
 		u, err = strconv.ParseUint(fields[7], 10, 32)
-		if err != nil {
-			return nil, err
+		if err != nil || u > math.MaxUint32 {
+			return nil, fmt.Errorf("invalid uint32 conversion: %v", err)
 		}
 		e.UID = uint32(u)
 		e.Ino = fields[9]

@@ -219,14 +219,14 @@ func (t timespanType) ConvertToTimespan(v interface{}) (Timespan, error) {
 		}
 		if strings.Contains(value, ".") {
 			strAsDouble, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				return Timespan(0), ErrConvertingToTimeType.New(v)
+			if err != nil || strAsDouble < math.MinInt64 || strAsDouble > math.MaxInt64 {
+				return Timespan(0), fmt.Errorf("invalid float conversion: %v", err)
 			}
 			return t.ConvertToTimespan(strAsDouble)
 		} else {
 			strAsInt, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				return Timespan(0), ErrConvertingToTimeType.New(v)
+			if err != nil || strAsInt < math.MinInt64 || strAsInt > math.MaxInt64 {
+				return Timespan(0), fmt.Errorf("invalid int conversion: %v", err)
 			}
 			return t.ConvertToTimespan(strAsInt)
 		}
@@ -427,7 +427,7 @@ func safeSubstr(s string, start int, end int) string {
 }
 
 // MicrosecondsToTimespan implements the TimeType interface.
-func (_ timespanType) MicrosecondsToTimespan(v int64) Timespan {
+func (t timespanType) MicrosecondsToTimespan(v int64) Timespan {
 	if v < timespanMinimum {
 		v = timespanMinimum
 	} else if v > timespanMaximum {

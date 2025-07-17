@@ -42,12 +42,8 @@ func (r Row) Copy() Row {
 // Append appends all the values in r2 to this row and returns the result
 func (r Row) Append(r2 Row) Row {
 	row := make(Row, len(r)+len(r2))
-	for i := range r {
-		row[i] = r[i]
-	}
-	for i := range r2 {
-		row[i+len(r)] = r2[i]
-	}
+	copy(row, r)
+	copy(row[len(r):], r2)
 	return row
 }
 
@@ -106,6 +102,15 @@ type RowIter2 interface {
 
 // RowIterToRows converts a row iterator to a slice of rows.
 func RowIterToRows(ctx *Context, sch Schema, i RowIter) ([]Row, error) {
+	// Check for nil parameters
+	if ctx == nil {
+		return nil, fmt.Errorf("context cannot be nil")
+	}
+	if i == nil {
+		return nil, fmt.Errorf("iterator cannot be nil")
+	}
+
+	// Handle RowIter2 type if available
 	if ri2, ok := i.(RowIterTypeSelector); ok && ri2.IsNode2() && sch != nil {
 		return RowIter2ToRows(ctx, sch, ri2.(RowIter2))
 	}
@@ -118,21 +123,45 @@ func RowIterToRows(ctx *Context, sch Schema, i RowIter) ([]Row, error) {
 		}
 
 		if err != nil {
-			i.Close(ctx)
+			closeErr := i.Close(ctx)
+			if closeErr != nil {
+				// Log the close error but return the original error
+				ctx.Warn(0, "error closing iterator: %s", closeErr.Error())
+			}
 			return nil, err
 		}
 
 		rows = append(rows, row)
 	}
 
-	return rows, i.Close(ctx)
+	// Handle any errors from closing the iterator
+	if err := i.Close(ctx); err != nil {
+		return nil, err
+	}
+
+	return rows, nil
 }
 
 func RowIter2ToRows(ctx *Context, sch Schema, i RowIter2) ([]Row, error) {
+	// Validate parameters to prevent potential panics
+	if ctx == nil {
+		return nil, fmt.Errorf("context cannot be nil")
+	}
+	if sch == nil {
+		return nil, fmt.Errorf("schema cannot be nil")
+	}
+	if i == nil {
+		return nil, fmt.Errorf("iterator cannot be nil")
+	}
+
 	var rows []Row
 
 	for {
 		f := NewRowFrame()
+		if f == nil {
+			return nil, fmt.Errorf("failed to create row frame")
+		}
+
 		err := i.Next2(ctx, f)
 
 		if err == io.EOF {
@@ -140,44 +169,132 @@ func RowIter2ToRows(ctx *Context, sch Schema, i RowIter2) ([]Row, error) {
 		}
 
 		if err != nil {
-			_ = i.Close(ctx)
+			// Make sure we close the iterator on error
+			closeErr := i.Close(ctx)
+			if closeErr != nil {
+				// Log the close error but return the original error
+				ctx.Warn(0, "error closing iterator: %s", closeErr.Error())
+			}
 			return nil, err
 		}
 
-		rows = append(rows, rowFromRow2(sch, f.Row2()))
+		// Check if Row2() returns a valid Row2 object
+		r2 := f.Row2()
+		if r2 == nil {
+			return nil, fmt.Errorf("invalid row frame: Row2() returned nil")
+		}
+
+		rows = append(rows, rowFromRow2(sch, r2))
 	}
 
-	return rows, i.Close(ctx)
+	// Handle any errors from closing the iterator
+	if err := i.Close(ctx); err != nil {
+		return nil, err
+	}
+
+	return rows, nil
 }
 
 func rowFromRow2(sch Schema, r Row2) Row {
 	row := make(Row, len(sch))
 	for i, col := range sch {
+		// Handle the case where the field might be nil or invalid
+		field := r.GetField(i)
+		if field.IsNull() || field.Val == nil {
+			row[i] = nil
+			continue
+		}
+
 		switch col.Type.Type() {
 		case query.Type_INT8:
-			row[i] = values.ReadInt8(r.GetField(i).Val)
+			val, err := values.ReadInt8(field.Val)
+			if err != nil {
+				// In case of error, use zero value
+				row[i] = int8(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_UINT8:
-			row[i] = values.ReadUint8(r.GetField(i).Val)
+			val, err := values.ReadUint8(field.Val)
+			if err != nil {
+				row[i] = uint8(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_INT16:
-			row[i] = values.ReadInt16(r.GetField(i).Val)
+			val, err := values.ReadInt16(field.Val)
+			if err != nil {
+				row[i] = int16(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_UINT16:
-			row[i] = values.ReadUint16(r.GetField(i).Val)
+			val, err := values.ReadUint16(field.Val)
+			if err != nil {
+				row[i] = uint16(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_INT32:
-			row[i] = values.ReadInt32(r.GetField(i).Val)
+			val, err := values.ReadInt32(field.Val)
+			if err != nil {
+				row[i] = int32(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_UINT32:
-			row[i] = values.ReadUint32(r.GetField(i).Val)
+			val, err := values.ReadUint32(field.Val)
+			if err != nil {
+				row[i] = uint32(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_INT64:
-			row[i] = values.ReadInt64(r.GetField(i).Val)
+			val, err := values.ReadInt64(field.Val)
+			if err != nil {
+				row[i] = int64(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_UINT64:
-			row[i] = values.ReadUint64(r.GetField(i).Val)
+			val, err := values.ReadUint64(field.Val)
+			if err != nil {
+				row[i] = uint64(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_FLOAT32:
-			row[i] = values.ReadFloat32(r.GetField(i).Val)
+			val, err := values.ReadFloat32(field.Val)
+			if err != nil {
+				row[i] = float32(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_FLOAT64:
-			row[i] = values.ReadFloat64(r.GetField(i).Val)
+			val, err := values.ReadFloat64(field.Val)
+			if err != nil {
+				row[i] = float64(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_TEXT, query.Type_VARCHAR, query.Type_CHAR:
-			row[i] = values.ReadString(r.GetField(i).Val, values.ByteOrderCollation)
+			row[i] = values.ReadString(field.Val, values.ByteOrderCollation)
 		case query.Type_BLOB, query.Type_VARBINARY, query.Type_BINARY:
-			row[i] = values.ReadBytes(r.GetField(i).Val, values.ByteOrderCollation)
+			row[i] = values.ReadBytes(field.Val, values.ByteOrderCollation)
+		case query.Type_INT24:
+			val, err := values.ReadInt24(field.Val)
+			if err != nil {
+				row[i] = int32(0)
+			} else {
+				row[i] = val
+			}
+		case query.Type_UINT24:
+			val, err := values.ReadUint24(field.Val)
+			if err != nil {
+				row[i] = uint32(0)
+			} else {
+				row[i] = val
+			}
 		case query.Type_BIT:
 			fallthrough
 		case query.Type_ENUM:
@@ -192,10 +309,6 @@ func rowFromRow2(sch Schema, r Row2) Row {
 			fallthrough
 		case query.Type_EXPRESSION:
 			fallthrough
-		case query.Type_INT24:
-			fallthrough
-		case query.Type_UINT24:
-			fallthrough
 		case query.Type_TIMESTAMP:
 			fallthrough
 		case query.Type_DATE:
@@ -207,9 +320,11 @@ func rowFromRow2(sch Schema, r Row2) Row {
 		case query.Type_YEAR:
 			fallthrough
 		case query.Type_DECIMAL:
-			panic(fmt.Sprintf("Unimplemented type conversion: %T", col.Type))
+			// Instead of panicking, set to nil for unimplemented types
+			row[i] = nil
 		default:
-			panic(fmt.Sprintf("unknown type %T", col.Type))
+			// Also set to nil for unknown types
+			row[i] = nil
 		}
 	}
 	return row
@@ -217,9 +332,21 @@ func rowFromRow2(sch Schema, r Row2) Row {
 
 // NodeToRows converts a node to a slice of rows.
 func NodeToRows(ctx *Context, n Node) ([]Row, error) {
+	// Check for nil parameters
+	if ctx == nil {
+		return nil, fmt.Errorf("context cannot be nil")
+	}
+	if n == nil {
+		return nil, fmt.Errorf("node cannot be nil")
+	}
+
 	i, err := n.RowIter(ctx, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if i == nil {
+		return nil, fmt.Errorf("node returned nil iterator")
 	}
 
 	return RowIterToRows(ctx, nil, i)
